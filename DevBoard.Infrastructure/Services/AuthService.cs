@@ -1,7 +1,7 @@
 using DevBoard.Application.DTOs.Auth;
 using DevBoard.Application.Interfaces;
 using DevBoard.Domain.Entities;
-using DevBoard.Infrastructure.Persisttence;
+using DevBoard.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
