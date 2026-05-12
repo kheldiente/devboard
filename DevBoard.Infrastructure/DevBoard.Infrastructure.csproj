@@ -9,7 +9,14 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.18.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DevBoard.Domain\DevBoard.Domain.csproj" />
+    <ProjectReference Include="..\DevBoard.Application\DevBoard.Application.csproj" />
   </ItemGroup>
 
 </Project>
