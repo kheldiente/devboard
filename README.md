@@ -247,3 +247,7 @@ What the app does (2 sentences)
 Architecture diagram (even a simple ASCII one)
 How to run locally (docker compose up — one command)
 Key technical decisions and why (this is your interview answer in writing)
+
+################################
+
+To run this project, `dotnet run --project DevBoard.Api`
