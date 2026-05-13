@@ -1,3 +1,4 @@
+using DevBoard.Application.DTOs.Tasks;
 using DevBoard.Application.Features.Tasks.Commands.CreateTask;
 using DevBoard.Application.Features.Tasks.Commands.UpdateTaskStatus;
 using DevBoard.Application.Features.Tasks.Queries.GetTasksByBoard;
@@ -21,8 +22,15 @@ public class TasksController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(CreateTaskCommand command)
+    public async Task<IActionResult> Create([FromBody] CreateTaskRequest request)
     {
+        var command = new CreateTaskCommand(
+            request.Title,
+            request.Description,
+            request.BoardId,
+            request.AssigneeId,
+            request.StoryPoints
+        );
         var id = await mediator.Send(command);
         return CreatedAtAction(nameof(GetByBoard), new { boardId = command.BoardId }, id);
     }
