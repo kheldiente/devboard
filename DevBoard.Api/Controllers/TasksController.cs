@@ -1,0 +1,36 @@
+using DevBoard.Application.Features.Tasks.Commands.CreateTask;
+using DevBoard.Application.Features.Tasks.Commands.UpdateTaskStatus;
+using DevBoard.Application.Features.Tasks.Queries.GetTasksByBoard;
+using DevBoard.Domain.Entities;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DevBoard.Api.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class TasksController(IMediator mediator) : ControllerBase
+{
+    [HttpGet("board/{boardId}")]
+    public async Task<IActionResult> GetByBoard(Guid boardId)
+    {
+        var result = await mediator.Send(new GetTasksByBoardQuery(boardId));
+        return Ok(result);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create(CreateTaskCommand command)
+    {
+        var id = await mediator.Send(command);
+        return CreatedAtAction(nameof(GetByBoard), new { boardId = command.BoardId }, id);
+    }
+
+    [HttpPatch("{taskId}/status")]
+    public async Task<IActionResult> UpdateStatus(Guid taskId, [FromBody] TaskItemStatus newStatus)
+    {
+        await mediator.Send(new UpdateTaskStatusCommand(taskId, newStatus));
+        return NoContent();
+    }
+}

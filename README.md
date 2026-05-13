@@ -302,6 +302,23 @@ dotnet ef database update \
   -s DevBoard.Api
 ```
 
+```bash
+dotnet ef migrations add AddProjectsBoardsTasks \ 
+    -p DevBoard.Infrastructure \ 
+    -s DevBoard.Api
+```
+
+```bash
+dotnet ef database update \
+    -p DevBoard.Instracture \
+    -s DevBoard.Api
+```
+
+```
+-p DevBoard.Infrastructure - the project that contains AppDbContext and where migrations files are saved \
+-s DevBoard.Api - the startup project that has appsettings.json with the connection string and DI setup
+```
+
 > Never modify a migration after it has been applied. Create a new migration instead.
 
 ---
