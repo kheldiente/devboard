@@ -1,7 +1,66 @@
-Phase 1 — Foundation
+# DevBoard
 
-Project setup
-bashdotnet new sln -n DevBoard
+A production-style task and board management backend built with modern ASP.NET Core practices.  
+This project demonstrates Clean Architecture, CQRS with MediatR, JWT authentication, EF Core with PostgreSQL, background jobs using Hangfire, and automated testing with Testcontainers.
+
+---
+
+# Tech Stack
+
+- ASP.NET Core 8 Web API
+- PostgreSQL
+- Entity Framework Core
+- Clean Architecture
+- CQRS + MediatR
+- JWT Authentication + Refresh Tokens
+- FluentValidation
+- Hangfire
+- xUnit
+- Testcontainers
+- Docker
+- GitHub Actions
+
+---
+
+# Architecture
+
+```text
+┌────────────────────┐
+│    DevBoard.Api    │
+│  Controllers/API   │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│ DevBoard.Application│
+│ CQRS + MediatR      │
+│ Business Logic      │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│  DevBoard.Domain   │
+│   Core Entities    │
+│  Business Rules    │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│DevBoard.Infrastructure│
+│ EF Core + PostgreSQL │
+│ External Services    │
+└────────────────────┘
+```
+
+---
+
+# Solution Setup
+
+## Create the Solution
+
+```bash
+dotnet new sln -n DevBoard
+
 dotnet new webapi -n DevBoard.Api
 dotnet new classlib -n DevBoard.Domain
 dotnet new classlib -n DevBoard.Application
@@ -9,202 +68,406 @@ dotnet new classlib -n DevBoard.Infrastructure
 dotnet new xunit -n DevBoard.Tests
 
 dotnet sln add **/*.csproj
+```
 
-################################
-Project references:
+---
 
-Api → Application → Domain
-Infrastructure → Application
-Api → Infrastructure (for DI registration only)
-Tests → Application, Infrastructure
+# Project References
 
-################################
-Key NuGet packages
+```text
+DevBoard.Api
+ ├── DevBoard.Application
+ └── DevBoard.Infrastructure
 
-# Infrastructure
+DevBoard.Application
+ └── DevBoard.Domain
+
+DevBoard.Infrastructure
+ └── DevBoard.Application
+
+DevBoard.Tests
+ ├── DevBoard.Application
+ └── DevBoard.Infrastructure
+```
+
+> `DevBoard.Api` references `Infrastructure` only for dependency injection registration.
+
+---
+
+# NuGet Packages
+
+## Infrastructure
+
+```bash
 dotnet add DevBoard.Infrastructure package Microsoft.EntityFrameworkCore
 dotnet add DevBoard.Infrastructure package Npgsql.EntityFrameworkCore.PostgreSQL
 dotnet add DevBoard.Infrastructure package Microsoft.AspNetCore.Identity.EntityFrameworkCore
+```
 
-# Application
+## Application
+
+```bash
 dotnet add DevBoard.Application package MediatR
 dotnet add DevBoard.Application package FluentValidation
 dotnet add DevBoard.Application package FluentValidation.DependencyInjectionExtensions
+```
 
-# Api
+## API
+
+```bash
 dotnet add DevBoard.Api package Microsoft.AspNetCore.Authentication.JwtBearer
 dotnet add DevBoard.Api package Hangfire.AspNetCore
 dotnet add DevBoard.Api package Hangfire.PostgreSql
+```
 
-# Tests
+## Tests
+
+```bash
 dotnet add DevBoard.Tests package Testcontainers.PostgreSql
 dotnet add DevBoard.Tests package Microsoft.AspNetCore.Mvc.Testing
+```
 
-################################
-Auth mental model — JWT + refresh tokens
+---
 
-Login request
-  → validate credentials
-  → issue short-lived access token (15 min)
-  → issue long-lived refresh token (7 days, stored in DB)
-  → return both to client
+# Authentication Flow
 
-Client stores:
-  access token  → memory (never localStorage)
-  refresh token → httpOnly cookie
+This project uses:
 
-On 401:
-  → client hits /auth/refresh with cookie
-  → server validates refresh token, rotates it (old one invalidated)
-  → returns new access token
-The rotation part (invalidating old refresh tokens) is what interviewers want to hear about — it prevents replay attacks.
+- Short-lived JWT access tokens
+- Long-lived refresh tokens with rotation
 
-################################
-Phase 2 — CQRS with MediatR
+## Authentication Lifecycle
 
-The pattern in plain terms
-Controller → sends Command or Query via IMediator
-                → MediatR finds the right Handler
-                → Handler does the work
-                → returns result
-Controllers become thin. All business logic lives in handlers. This is the key interview point.
+```text
+Login
+  ├── Validate credentials
+  ├── Issue access token (15 minutes)
+  ├── Issue refresh token (7 days)
+  └── Store refresh token in database
+```
 
-################################
-Pipeline behaviors — register these in order
+## Client Storage Strategy
 
-ValidationBehavior     ← runs FluentValidation before handler
-LoggingBehavior        ← logs command name + elapsed time
-PerformanceBehavior    ← warns if handler takes > 500ms
+| Token Type | Storage |
+|---|---|
+| Access Token | In-memory only |
+| Refresh Token | HTTP-only cookie |
 
-csharp// Registration order matters
-services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+## Refresh Flow
 
-################################
-Command vs Query — the rule
-Command: changes state, returns nothing (or just an ID)
-Query:   reads state, never changes anything
+```text
+401 Unauthorized
+  └── Client calls /auth/refresh
+        ├── Validate refresh token
+        ├── Rotate refresh token
+        ├── Invalidate previous token
+        └── Return new access token
+```
 
+Refresh token rotation helps prevent replay attacks and is commonly discussed during backend interviews.
+
+---
+
+# CQRS with MediatR
+
+## Request Flow
+
+```text
+Controller
+   ↓
+IMediator
+   ↓
+Command / Query Handler
+   ↓
+Business Logic
+   ↓
+Response
+```
+
+Controllers remain thin while business logic stays inside handlers.
+
+---
+
+# Command vs Query
+
+| Type | Responsibility |
+|---|---|
+| Command | Changes application state |
+| Query | Reads data only |
+
+## Example
+
+```csharp
 // Command
-public record CreateTaskCommand(string Title, Guid BoardId) : IRequest<Guid>;
+public record CreateTaskCommand(
+    string Title,
+    Guid BoardId
+) : IRequest<Guid>;
 
 // Query
-public record GetTasksByBoardQuery(Guid BoardId) : IRequest<List<TaskDto>>;
-Interview trap to avoid
-"Why not just put this logic in the controller?"
-→ Handlers are unit-testable in isolation — no HTTP context needed. Controllers are just transport.
+public record GetTasksByBoardQuery(
+    Guid BoardId
+) : IRequest<List<TaskDto>>;
+```
 
-################################
-Phase 3 — EF Core
+### Why use handlers instead of controllers?
 
-Code-first tips that come up in interviews
-Avoid anemic models — put behavior on your entities:
-csharppublic class TaskItem
+Handlers are:
+
+- Easier to unit test
+- Independent of HTTP concerns
+- Reusable across transports
+- Better aligned with separation of concerns
+
+---
+
+# Pipeline Behaviors
+
+Pipeline behaviors act like middleware for MediatR requests.
+
+## Recommended Order
+
+```csharp
+services.AddTransient(
+    typeof(IPipelineBehavior<,>),
+    typeof(ValidationBehavior<,>)
+);
+
+services.AddTransient(
+    typeof(IPipelineBehavior<,>),
+    typeof(LoggingBehavior<,>)
+);
+
+services.AddTransient(
+    typeof(IPipelineBehavior<,>),
+    typeof(PerformanceBehavior<,>)
+);
+```
+
+## Behaviors
+
+| Behavior | Purpose |
+|---|---|
+| ValidationBehavior | Runs FluentValidation before handlers |
+| LoggingBehavior | Logs request name and execution time |
+| PerformanceBehavior | Warns on slow requests |
+
+---
+
+# Entity Framework Core
+
+## Rich Domain Models
+
+Avoid anemic entities by keeping business rules inside the domain model.
+
+```csharp
+public class TaskItem
 {
     public TaskStatus Status { get; private set; }
 
     public void Transition(TaskStatus newStatus)
     {
-        // validate allowed transitions here
-        // don't let EF or a service do this logic
+        // Validate allowed transitions
         Status = newStatus;
     }
 }
-################################
-Owned types for value objects:
-csharp// In your DbContext OnModelCreating
+```
+
+---
+
+# Value Objects with Owned Types
+
+```csharp
 modelBuilder.Entity<TaskItem>()
     .OwnsOne(t => t.Priority);
+```
 
-################################
-Migrations discipline:
-bash# Always name migrations meaningfully
-dotnet ef migrations add AddRefreshTokenTable -p DevBoard.Infrastructure -s DevBoard.Api
-dotnet ef database update -p DevBoard.Infrastructure -s DevBoard.Api
-Never edit a migration after it's been applied. Add a new one.
+---
 
-################################
-N+1 — the most common EF interview question
-csharp// BAD — hits DB once per task
+# Migrations
+
+## Create Migration
+
+```bash
+dotnet ef migrations add AddRefreshTokenTable \
+  -p DevBoard.Infrastructure \
+  -s DevBoard.Api
+```
+
+## Apply Migration
+
+```bash
+dotnet ef database update \
+  -p DevBoard.Infrastructure \
+  -s DevBoard.Api
+```
+
+> Never modify a migration after it has been applied. Create a new migration instead.
+
+---
+
+# Avoiding the N+1 Query Problem
+
+## Bad
+
+```csharp
 var tasks = context.Tasks.ToList();
-foreach (var task in tasks)
-    Console.WriteLine(task.Assignee.Name); // extra query each time
 
-// GOOD
+foreach (var task in tasks)
+{
+    Console.WriteLine(task.Assignee.Name);
+}
+```
+
+This generates additional queries per task.
+
+---
+
+## Better
+
+```csharp
 var tasks = context.Tasks
     .Include(t => t.Assignee)
     .ToList();
-Know this cold. Then mention Select() projections as even better for read-heavy queries (don't load full entities you don't need).
+```
 
-################################
-Phase 4 — Background jobs with Hangfire
-Three job types to know
+For read-heavy endpoints, prefer projections with `Select()` to avoid loading entire entities unnecessarily.
 
-csharp// Fire and forget — runs once, immediately
-BackgroundJob.Enqueue(() => emailService.SendWelcome(userId));
+---
 
-// Delayed
-BackgroundJob.Schedule(() => task.SendReminder(taskId), TimeSpan.FromHours(24));
+# Background Jobs with Hangfire
 
-// Recurring — cron syntax
-RecurringJob.AddOrUpdate("overdue-scanner",
+## Fire-and-Forget
+
+```csharp
+BackgroundJob.Enqueue(
+    () => emailService.SendWelcome(userId)
+);
+```
+
+## Delayed Jobs
+
+```csharp
+BackgroundJob.Schedule(
+    () => task.SendReminder(taskId),
+    TimeSpan.FromHours(24)
+);
+```
+
+## Recurring Jobs
+
+```csharp
+RecurringJob.AddOrUpdate(
+    "overdue-scanner",
     () => scanner.RunAsync(),
-    Cron.Daily);
-Interview angle
-Hangfire persists jobs to PostgreSQL — so if your API restarts mid-job, it retries. Mention retry policies and idempotency: your job handler should be safe to run twice with the same input.
+    Cron.Daily
+);
+```
 
-################################
-Phase 5 — Testing strategy
-Unit tests — handlers only, no DB
-csharppublic class CreateTaskHandlerTests
+Hangfire persists jobs in PostgreSQL, allowing retries even after application restarts.
+
+Key concepts to understand:
+
+- Retry policies
+- Idempotent job handlers
+- Persistent background processing
+
+---
+
+# Testing Strategy
+
+## Unit Tests
+
+Focus on business logic and handlers only.
+
+```csharp
+public class CreateTaskHandlerTests
 {
     [Fact]
     public async Task Handle_ValidCommand_ReturnsNewTaskId()
     {
         // Arrange
-        var repo = Substitute.For<ITaskRepository>(); // NSubstitute
+        var repo = Substitute.For<ITaskRepository>();
         var handler = new CreateTaskHandler(repo);
-        var command = new CreateTaskCommand("Fix login bug", boardId);
+
+        var command = new CreateTaskCommand(
+            "Fix login bug",
+            boardId
+        );
 
         // Act
-        var result = await handler.Handle(command, CancellationToken.None);
+        var result = await handler.Handle(
+            command,
+            CancellationToken.None
+        );
 
         // Assert
-        result.Should().NotBeEmpty(); // FluentAssertions
+        result.Should().NotBeEmpty();
     }
 }
-Integration tests — real Postgres via Testcontainers
-csharppublic class TasksApiTests : IAsyncLifetime
+```
+
+---
+
+## Integration Tests
+
+Run against a real PostgreSQL instance using Testcontainers.
+
+```csharp
+public class TasksApiTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _db = new PostgreSqlBuilder().Build();
+    private readonly PostgreSqlContainer _db =
+        new PostgreSqlBuilder().Build();
 
     public async Task InitializeAsync()
     {
         await _db.StartAsync();
-        // build WebApplicationFactory with connection string pointing to container
+
+        // Configure WebApplicationFactory
+        // with container connection string
     }
 
     [Fact]
     public async Task POST_tasks_creates_and_returns_201()
     {
-        // hits real HTTP endpoints → real DB → real migrations
+        // Real HTTP endpoint
+        // Real database
+        // Real migrations
     }
 
-    public async Task DisposeAsync() => await _db.DisposeAsync();
+    public async Task DisposeAsync()
+    {
+        await _db.DisposeAsync();
+    }
 }
-The interview distinction: unit tests prove your logic is correct, integration tests prove your wiring is correct. You need both.
-################################
+```
 
-Phase 6 — Docker + CI
-docker-compose.yml shape
-yamlservices:
+## Testing Philosophy
+
+| Test Type | Validates |
+|---|---|
+| Unit Tests | Business logic correctness |
+| Integration Tests | Application wiring and infrastructure |
+
+Both are necessary for confidence in production systems.
+
+---
+
+# Docker Setup
+
+## docker-compose.yml
+
+```yaml
+services:
   api:
     build: ./backend
-    ports: ["5000:8080"]
+    ports:
+      - "5000:8080"
     environment:
-      - ConnectionStrings__Default=Host=db;Database=devboard;...
+      - ConnectionStrings__Default=Host=db;Database=devboard
       - Jwt__Secret=${JWT_SECRET}
-    depends_on: [db]
+    depends_on:
+      - db
 
   db:
     image: postgres:16
@@ -214,15 +477,25 @@ yamlservices:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  hangfire-dashboard:
-    # same api image, different entry — or expose via api
-GitHub Actions — minimal but correct
-yamlname: CI
-on: [push, pull_request]
+volumes:
+  pgdata:
+```
+
+---
+
+# CI with GitHub Actions
+
+```yaml
+name: CI
+
+on:
+  - push
+  - pull_request
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:16
@@ -231,23 +504,64 @@ jobs:
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.x
+
       - run: dotnet restore
       - run: dotnet build --no-restore
       - run: dotnet test --no-build
+```
 
-The README matters
-When you push to GitHub, your README is what a hiring manager sees first. Structure it as:
+---
 
-What the app does (2 sentences)
-Architecture diagram (even a simple ASCII one)
-How to run locally (docker compose up — one command)
-Key technical decisions and why (this is your interview answer in writing)
+# Running the Project
 
-################################
+## Run API
 
-To run this project, `dotnet run --project DevBoard.Api`
+```bash
+dotnet run --project DevBoard.Api
+```
+
+## Run with Docker
+
+```bash
+docker compose up --build
+```
+
+---
+
+# Key Engineering Decisions
+
+| Decision | Reason |
+|---|---|
+| Clean Architecture | Clear separation of concerns |
+| CQRS + MediatR | Thin controllers and testable business logic |
+| JWT + Refresh Tokens | Secure stateless authentication |
+| PostgreSQL | Reliable relational database |
+| Hangfire | Persistent background job processing |
+| Testcontainers | Real integration testing environment |
+| Docker | Consistent local and deployment environments |
+
+---
+
+# Future Improvements
+
+- Redis caching
+- Distributed tracing
+- Role-based authorization
+- WebSocket notifications
+- OpenTelemetry metrics
+- Kubernetes deployment
+- Rate limiting
+- Multi-tenant support
+
+---
+
+# License
+
+MIT License
