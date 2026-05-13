@@ -54,6 +54,14 @@ This project demonstrates Clean Architecture, CQRS with MediatR, JWT authenticat
 
 ---
 
+# Swagger
+
+```
+http://localhost:5196/swagger
+```
+
+---
+
 # Solution Setup
 
 ## Create the Solution
