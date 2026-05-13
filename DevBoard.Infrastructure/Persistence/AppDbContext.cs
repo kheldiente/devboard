@@ -9,6 +9,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<User, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<Board> Boards => Set<Board>();
+    public DbSet<TaskItem> Tasks => Set<TaskItem>();
+    public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -23,5 +27,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.Entity<RefreshToken>()
             .HasIndex(r => r.Token)
             .IsUnique();
+
+        builder.Entity<ProjectMember>()
+            .HasKey(pm => new { pm.UserId, pm.ProjectId });
     }
 }

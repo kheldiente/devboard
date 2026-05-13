@@ -1,4 +1,5 @@
 using System.Text;
+using DevBoard.Application;
 using DevBoard.Domain.Entities;
 using DevBoard.Infrastructure;
 using DevBoard.Infrastructure.Persistence;
@@ -39,6 +40,7 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+builder.Services.AddApplication();
 
 var app = builder.Build();
 

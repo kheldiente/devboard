@@ -1,6 +1,8 @@
 using DevBoard.Application.Interfaces;
+using DevBoard.Application.Interfaces.Repositories;
 using DevBoard.Domain.Entities;
 using DevBoard.Infrastructure.Persistence;
+using DevBoard.Infrastructure.Repositories;
 using DevBoard.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +21,7 @@ public static class DependencyInjection
 
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ITaskRepository, TaskRepository>();
 
         return services;
     }
