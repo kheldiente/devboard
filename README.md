@@ -552,6 +552,11 @@ jobs:
 dotnet run --project DevBoard.Api
 ```
 
+## Run API with Logger
+```bash
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project DevBoard.Api
+```
+
 ## Run with Docker
 
 ```bash

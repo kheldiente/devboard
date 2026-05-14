@@ -1,4 +1,5 @@
 using System.Text;
+using DevBoard.Api.Middleware;
 using DevBoard.Application;
 using DevBoard.Domain.Entities;
 using DevBoard.Infrastructure;
@@ -46,9 +47,11 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+app.UseMiddleware<ExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
