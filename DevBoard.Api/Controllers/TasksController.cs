@@ -3,6 +3,8 @@ using DevBoard.Application.Features.Tasks.Commands.CreateTask;
 using DevBoard.Application.Features.Tasks.Commands.UpdateTaskStatus;
 using DevBoard.Application.Features.Tasks.Queries.GetTasksByBoard;
 using DevBoard.Domain.Entities;
+using DevBoard.Infrastructure.Jobs;
+using Hangfire;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -41,4 +43,14 @@ public class TasksController(IMediator mediator) : ControllerBase
         await mediator.Send(new UpdateTaskStatusCommand(taskId, newStatus));
         return NoContent();
     }
+
+    [HttpPost("{taskId}/notify")]
+    public IActionResult TriggerNotification(Guid taskId)
+    {
+        // fire and forget
+        // can be access via http://localhost:5196/hangfire
+        BackgroundJob.Enqueue<OverdueTaskScanner>(job => job.RunAsync());
+        return Accepted();
+    }
+
 }

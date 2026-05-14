@@ -1,6 +1,7 @@
 using DevBoard.Application.Interfaces;
 using DevBoard.Application.Interfaces.Repositories;
 using DevBoard.Domain.Entities;
+using DevBoard.Infrastructure.Jobs;
 using DevBoard.Infrastructure.Persistence;
 using DevBoard.Infrastructure.Repositories;
 using DevBoard.Infrastructure.Services;
@@ -22,6 +23,9 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITaskRepository, TaskRepository>();
+
+        services.AddScoped<OverdueTaskScanner>();
+        services.AddScoped<DailyDigestJob>();
 
         return services;
     }
