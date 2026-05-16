@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using Hangfire;
 using Hangfire.PostgreSql;
 using DevBoard.Infrastructure.Jobs;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,7 +84,8 @@ if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await Seed.SeedAsync(db);
+    await db.Database.MigrateAsync(); // runs pending migrations first
+    await Seed.SeedAsync(db); // then seeds
 }
 
 app.Run();

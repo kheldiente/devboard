@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: devboard_test
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: build
+        run: dotnet build --no-restore -c Release
+
+      - name: Unit tests
+        run: dotnet test --no-build -c Release -filter "FullyQualifiedName-Unit"
+
+      - name: Integration tests
+        run: dotnet test --no-build -c Release --filter "FullyQualifiedName-Integration"
+        env:
+          ConnectionStrings__Default: Host=localhost;Port=5432;Database=devboard_test;Username:postgres;Password=testpassword
+          Jwt__Secret: test-secret-key-min-32-characters-long
+          Jwt__Issuer: devboard-api
+          Jwt__Audience: devboard-client
